@@ -33,15 +33,14 @@ str(table)
 Extract the "Historical population" table from the list and save it as another object. You can use subsetting via `[[…]]` to extract pieces from a list. Print the result.
 
 ```{r}
-Historical_Population <- table[[2]]
-Historical_Population
+Grand_Boulevard <- table[[2]]
+Grand_Boulevard
 ```
 
 You will see that the table needs some additional formatting. Keep only want rows and columns with actual values.
 
 ```{r}
-Historical_Population %>%
-  select(-3)
+Grand_Boulevard <- Grand_Boulevard[,-3]
 ```
 
 ## Expanding to More Pages
@@ -74,7 +73,6 @@ Build a loop to grab the population tables from each page. Add columns to the or
 
 ```{r}
 urls <- c(
-  "https://en.wikipedia.org/wiki/Grand_Boulevard,_Chicago",
   "https://en.wikipedia.org/wiki/Oakland,_Chicago",
   "https://en.wikipedia.org/wiki/Kenwood,_Chicago",
   "https://en.wikipedia.org/wiki/Hyde_Park,_Chicago")
@@ -99,21 +97,27 @@ east_tables
 ```
 
 ```{r}
-Historical_Population <- as.data.frame(Historical_Population)
+Grand_Boulevard <- as.data.frame(Grand_Boulevard)
 east_tables <- lapply(east_tables, as.data.frame)
-
 east_tables <- lapply(east_tables, function(df) df[, -3, drop = FALSE])
-Historical_Population <- Historical_Population[, -3, drop = FALSE]
 
+east_tables
+Grand_Boulevard
 ```
 
 ```{r}
-dfs <- list(Historical_Population, east_tables$Oakland, east_tables$Kenwood, east_tables$Hyde_Park)
-common <- Reduce(intersect, lapply(dfs, \(x) x$Census))
-dfs <- lapply(dfs, \(x) x[order(x$Census), ][x$Census %in% common, , drop = FALSE])
-final_tables <- cbind(dfs[[1]], dfs[[2]][, -1], dfs[[3]][, -1], dfs[[4]][, -1])
+dfs <- list(Grand_Boulevard, east_tables$Hyde_Park, east_tables$Kenwood, east_tables$Oakland)
+max_rows <- max(sapply(dfs, nrow))
+dfs <- lapply(dfs, function(x) x[seq_len(max_rows), ])
 
-final_tables
+final_table <- cbind(
+  dfs[[1]],
+  dfs[[2]][, (ncol(dfs[[2]])-1):ncol(dfs[[2]])],
+  dfs[[3]][, (ncol(dfs[[3]])-1):ncol(dfs[[3]])],
+  dfs[[4]][, (ncol(dfs[[4]])-1):ncol(dfs[[4]])]
+)
+
+final_table
 ```
 
 ## Scraping and Analyzing Text Data
@@ -139,7 +143,13 @@ Using a similar loop as in the last section, grab the descriptions of the variou
 ```{r}
 community <- tibble()
 
-for (u in urls) {
+url_all <- c(
+  "https://en.wikipedia.org/wiki/Grand_Boulevard,_Chicago",
+  "https://en.wikipedia.org/wiki/Oakland,_Chicago",
+  "https://en.wikipedia.org/wiki/Kenwood,_Chicago",
+  "https://en.wikipedia.org/wiki/Hyde_Park,_Chicago")
+
+for (u in url_all) {
     webpages <- read_html(u)
   
   description <- webpages %>%
@@ -209,7 +219,7 @@ common_words %>%
 
 -   Dissimilarity:
 
-    "Votes" and "cast" are frequently appeared in the website of Grand Boulevard is that this community is politically active, which supported the Democratic Party.
+    "Votes" and "cast" are frequently appeared in the website of Grand Boulevard is that this community is politically active, which supported Democratic Party.
 
     “University” is included in top words as University of Chicago is located in Hyde Park. Hyde Park is near Lake Michigan and Kenwood, so that's why "Lake" and "Kenwood" also shown in the top words.
 
