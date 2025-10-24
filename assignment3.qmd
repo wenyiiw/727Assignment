@@ -74,6 +74,7 @@ Build a loop to grab the population tables from each page. Add columns to the or
 
 ```{r}
 urls <- c(
+  "https://en.wikipedia.org/wiki/Grand_Boulevard,_Chicago",
   "https://en.wikipedia.org/wiki/Oakland,_Chicago",
   "https://en.wikipedia.org/wiki/Kenwood,_Chicago",
   "https://en.wikipedia.org/wiki/Hyde_Park,_Chicago")
@@ -206,4 +207,12 @@ common_words %>%
 
 -   Similarity: Words mentioned the most frequently are names of these communities. Besides, they are all in the southern part of Chicago, so "South" and "Chicago" are also used frequently in their descriptions.
 
-    Dissimilarity: “University” is included in top words as University of Chicago is located in Hyde Park. Hyde Park is near Lake Michigan and Kenwood, so that's why "Lake" and "Kenwood" also shown in the top words. For Kenwood, it is a community which near Hyde Park, so "Hyde" and "Park" are both included in the common words in the description of Kenwood. Moreover, there are many schools in Kenwood community. Oakland is near Lake Michigan, so "Lake" is listed in the top words in Oakland. There are many African-Americans settled in Oakland, and that's why "African" is mentioned frequently in the description of Oakland. There are many houses in Oakland due to the increase of immigrants, so "House" and "Homes" are common in descriptions.
+-   Dissimilarity:
+
+    "Votes" and "cast" are frequently appeared in the website of Grand Boulevard is that this community is politically active, which supported the Democratic Party.
+
+    “University” is included in top words as University of Chicago is located in Hyde Park. Hyde Park is near Lake Michigan and Kenwood, so that's why "Lake" and "Kenwood" also shown in the top words.
+
+    For Kenwood, it is a community which near Hyde Park, so "Hyde" and "Park" are both included in the common words in the description of Kenwood. Moreover, there are many schools in Kenwood community.
+
+    Oakland is near Lake Michigan, so "Lake" is listed in the top words in Oakland. There are many African-Americans settled in Oakland, and that's why "African" is mentioned frequently in the description of Oakland. There are many houses in Oakland due to the increase of immigrants, so "House" and "Homes" are common in descriptions.
