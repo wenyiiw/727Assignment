@@ -1,0 +1,209 @@
+---
+title: "Assignment 3_Wenyi Wang"
+subtitle: "Due at 11:59pm on October 14."
+format: pdf
+editor: visual
+---
+
+You may work in pairs or individually for this assignment. Make sure you join a group in Canvas if you are working in pairs. Turn in this assignment as an HTML or PDF file to ELMS. Make sure to include the R Markdown or Quarto file that was used to generate it. Include the GitHub link for the repository containing these files.
+
+```{r}
+library(xml2)
+library(rvest)
+library(tidyverse)
+library(stringr)
+```
+
+## Web Scraping
+
+In this assignment, your task is to scrape some information from Wikipedia. We start with the following page about Grand Boulevard, a Chicago Community Area.
+
+<https://en.wikipedia.org/wiki/Grand_Boulevard,_Chicago>
+
+The ultimate goal is to gather the table "Historical population" and convert it to a `data.frame`.
+
+As a first step, read in the html page as an R object. Extract the tables from this object (using the `rvest` package) and save the result as a new object. Follow the instructions if there is an error. Use `str()` on this new object -- it should be a list. Try to find the position of the "Historical population" in this list since we need it in the next step.
+
+```{r}
+webpage <- read_html("https://en.wikipedia.org/wiki/Grand_Boulevard,_Chicago")
+table <- html_table(webpage)
+str(table)
+```
+
+Extract the "Historical population" table from the list and save it as another object. You can use subsetting via `[[…]]` to extract pieces from a list. Print the result.
+
+```{r}
+Historical_Population <- table[[2]]
+Historical_Population
+```
+
+You will see that the table needs some additional formatting. Keep only want rows and columns with actual values.
+
+```{r}
+Historical_Population %>%
+  select(-3)
+```
+
+## Expanding to More Pages
+
+That's it for this page. However, we may want to repeat this process for other community areas. The Wikipedia page <https://en.wikipedia.org/wiki/Grand_Boulevard,_Chicago> has a section on "Places adjacent to Grand Boulevard, Chicago" at the bottom. Can you find the corresponding table in the list of tables that you created earlier? Extract this table as a new object.
+
+```{r}
+adj_to_gb <- table[[3]]
+adj_to_gb_new <- subset(adj_to_gb, !grepl("\\n", adj_to_gb[[1]]))
+
+adj_to_gb_new
+```
+
+Then, grab the community areas east of Grand Boulevard and save them as a character vector. Print the result.
+
+```{r}
+east <- as.character(adj_to_gb_new[[3]])
+east <- east[trimws(east) != ""]
+east
+```
+
+We want to use this list to create a loop that extracts the population tables from the Wikipedia pages of these places. To make this work and build valid urls, we need to replace empty spaces in the character vector with underscores. The resulting vector should look like this: "Oakland,\_Chicago" "Kenwood,\_Chicago" "Hyde_Park,\_Chicago"
+
+```{r}
+east_new <- gsub(" ", "_", east)
+east_new
+```
+
+Build a loop to grab the population tables from each page. Add columns to the original table using `cbind()`.
+
+```{r}
+urls <- c(
+  "https://en.wikipedia.org/wiki/Oakland,_Chicago",
+  "https://en.wikipedia.org/wiki/Kenwood,_Chicago",
+  "https://en.wikipedia.org/wiki/Hyde_Park,_Chicago")
+
+east_tables <- list()
+
+for (i in seq_along(urls)) {
+  webpages <- read_html(urls[i])
+  tables <- html_table(webpages, fill = TRUE)
+  
+  captions <- html_elements(webpages, "caption") %>% html_text2()
+  idx <- which(str_detect(captions, regex("Historical population", ignore_case = TRUE)))
+  Historical_Population <- html_elements(webpages, "caption")[idx[1]] %>%
+    html_element(xpath = "..") %>%
+    html_table(fill = TRUE)
+  
+  name <- gsub("https://en.wikipedia.org/wiki/|,_Chicago", "", urls[i])
+  east_tables[[name]] <- Historical_Population
+}
+
+east_tables
+```
+
+```{r}
+Historical_Population <- as.data.frame(Historical_Population)
+east_tables <- lapply(east_tables, as.data.frame)
+
+east_tables <- lapply(east_tables, function(df) df[, -3, drop = FALSE])
+Historical_Population <- Historical_Population[, -3, drop = FALSE]
+
+```
+
+```{r}
+dfs <- list(Historical_Population, east_tables$Oakland, east_tables$Kenwood, east_tables$Hyde_Park)
+common <- Reduce(intersect, lapply(dfs, \(x) x$Census))
+dfs <- lapply(dfs, \(x) x[order(x$Census), ][x$Census %in% common, , drop = FALSE])
+final_tables <- cbind(dfs[[1]], dfs[[2]][, -1], dfs[[3]][, -1], dfs[[4]][, -1])
+
+final_tables
+```
+
+## Scraping and Analyzing Text Data
+
+Suppose we wanted to take the actual text from the Wikipedia pages instead of just the information in the table. Our goal in this section is to extract the text from the body of the pages, then do some basic text cleaning and analysis.
+
+First, scrape just the text without any of the information in the margins or headers. For example, for "Grand Boulevard", the text should start with, "**Grand Boulevard** on the [South Side](https://en.wikipedia.org/wiki/South_Side,_Chicago "South Side, Chicago") of [Chicago](https://en.wikipedia.org/wiki/Chicago "Chicago"), [Illinois](https://en.wikipedia.org/wiki/Illinois "Illinois"), is one of the ...". Make sure all of the text is in one block by using something like the code below (I called my object `description`).
+
+```{r}
+description <- webpage %>%
+  html_elements("div.mw-parser-output > p") %>%  
+  html_text2() %>%                               
+  str_replace_all("\\[[0-9]+\\]", "") %>%       
+  str_squish()   
+
+description <- description %>% paste(collapse = ' ')
+
+description
+```
+
+Using a similar loop as in the last section, grab the descriptions of the various communities areas. Make a tibble with two columns: the name of the location and the text describing the location.
+
+```{r}
+community <- tibble()
+
+for (u in urls) {
+    webpages <- read_html(u)
+  
+  description <- webpages %>%
+    html_elements("div.mw-parser-output > p") %>%
+    html_text2() %>%
+    str_replace_all("\\[[0-9]+\\]", "") %>%  
+    str_squish() %>%
+    paste(collapse = " ") 
+  
+  name <- gsub("https://en.wikipedia.org/wiki/|,_Chicago", "", u)
+  
+  community <- rbind(
+    community,
+    tibble(location = name, description = description)
+  )
+}
+
+print(community)
+```
+
+Let's clean the data using `tidytext`. If you have trouble with this section, see the example shown in <https://www.tidytextmining.com/tidytext.html>
+
+```{r}
+library(tidytext)
+```
+
+Create tokens using `unnest_tokens`. Make sure the data is in one-token-per-row format. Remove any stop words within the data. What are the most common words used overall?
+
+```{r}
+data("stop_words")
+
+tokens <- community %>%
+  unnest_tokens(word, description) %>%
+  anti_join(stop_words, by = "word") 
+
+tokens %>%
+  count(word, sort = TRUE) %>%
+  head(10)
+```
+
+Plot the most common words within each location. What are some of the similarities between the locations? What are some of the differences?
+
+```{r}
+common_words <- tokens %>%
+  count(location, word, name = "n", sort = TRUE) %>%
+  group_by(location) %>%
+  slice_max(n, n = 10, with_ties = FALSE) %>%
+  ungroup() %>%
+  filter(!is.na(location), !is.na(word), !is.na(n)) %>%
+  mutate(
+    location = as.character(location),
+    word     = as.character(word),
+    n        = as.numeric(n)
+  )
+
+common_words %>%
+  mutate(word = reorder_within(word, n, location)) %>%  
+  ggplot(aes(x = word, y = n)) +
+  geom_col(fill = "grey") +
+  coord_flip() +
+  scale_x_reordered() +
+  facet_wrap(~location, scales = "free_y") +
+  labs(x = "", y = "") 
+```
+
+-   Similarity: Words mentioned the most frequently are names of these communities. Besides, they are all in the southern part of Chicago, so "South" and "Chicago" are also used frequently in their descriptions.
+
+    Dissimilarity: “University” is included in top words as University of Chicago is located in Hyde Park. Hyde Park is near Lake Michigan and Kenwood, so that's why "Lake" and "Kenwood" also shown in the top words. For Kenwood, it is a community which near Hyde Park, so "Hyde" and "Park" are both included in the common words in the description of Kenwood. Moreover, there are many schools in Kenwood community. Oakland is near Lake Michigan, so "Lake" is listed in the top words in Oakland. There are many African-Americans settled in Oakland, and that's why "African" is mentioned frequently in the description of Oakland. There are many houses in Oakland due to the increase of immigrants, so "House" and "Homes" are common in descriptions.
