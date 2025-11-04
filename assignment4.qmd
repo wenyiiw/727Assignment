@@ -146,7 +146,7 @@ Again, count the number of arrests grouped by `primary_type` of district 11 in y
 arrest_count_2016 <- crime %>%
   filter(year == 2016, district == 11, arrest == TRUE) %>%
   group_by(primary_type)
-arrest_count
+arrest_count_2016
 ```
 
 Count the number of arrests grouped by `primary_type` and `year`, still only for district 11. Arrange the result by `year`.
