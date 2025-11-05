@@ -1,4 +1,5 @@
 ---
+2---
 title: "Assignment 4_Wenyi Wang"
 subtitle: "Due at 11:59pm on November 4."
 format: pdf
@@ -145,7 +146,10 @@ Again, count the number of arrests grouped by `primary_type` of district 11 in y
 ```{r}
 arrest_count_2016 <- crime %>%
   filter(year == 2016, district == 11, arrest == TRUE) %>%
-  group_by(primary_type)
+  group_by(primary_type)%>%
+  count()%>%
+  arrange(desc(n))
+
 arrest_count_2016
 ```
 
@@ -155,7 +159,8 @@ Count the number of arrests grouped by `primary_type` and `year`, still only for
 arrest_count_year <- crime %>%
   filter(district == 11, arrest == TRUE) %>%
   group_by(primary_type, year) %>%
-  arrange(year)
+  count() %>%
+  arrange(year, desc(n))
 arrest_count_year
 ```
 
