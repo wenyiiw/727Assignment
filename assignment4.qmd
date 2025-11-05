@@ -58,7 +58,7 @@ Write a first query that counts the number of rows of the \`crime\` table in the
 ```{sql connection = con}
 SELECT count(primary_type) AS primary_count, count(*) AS overall_count -- counting non-missing primary count and overall
 FROM crime 
-WHERE year = 2015 
+WHERE year = 2016 
 LIMIT 10;
 ```
 
