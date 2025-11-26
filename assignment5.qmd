@@ -132,10 +132,6 @@ ggplot(acs_map_clustered) +
 For the next section we need ACS data on a census tract level. We use the same variables as before.
 
 ```{r}
-#| eval: false
-cs_key <- read_lines("/Users/wyi/Desktop/Fall 2025/SURVMETH 727/Assignment3_Wenyi/cs_key.txt"
-)
-
 acs_il_t <- getCensus(name = "acs/acs5",
                     vintage = 2016,
                     vars = c("NAME", 
@@ -144,7 +140,7 @@ acs_il_t <- getCensus(name = "acs/acs5",
                              "B19301_001E"),
                     region = "tract:*",
                     regionin = "state:17",
-                    key = cs_key) %<>%
+                    key = cs_key) %>%
             mutate_all(funs(ifelse(.==-666666666, NA, .))) %>%
             rename(pop = B01003_001E,
                    hh_income = B19013_001E,
