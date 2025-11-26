@@ -72,9 +72,60 @@ ggplot(acs_map) +
 
 We want to find clusters of counties that are similar in their population, average household income and per capita income. First, clean the data so that you have the appropriate variables to use for clustering. Next, create the distance matrix of the cleaned data. This distance matrix can be used to cluster counties, e.g. using the ward method.
 
+```{r}
+acs_cluster <- acs_il_c %>%
+  select(subregion, pop, hh_income, income)
+
+acs_cluster_scaled <- acs_cluster %>%
+  column_to_rownames(var = "subregion") %>%
+  scale() %>%
+  as.data.frame()
+
+head(acs_cluster_scaled)
+```
+
+```{r}
+distance_matrix <- dist(acs_cluster_scaled, method = "euclidean")
+hc_ward <- hclust(distance_matrix, method = "ward.D2")
+```
+
 Plot the dendrogram to find a reasonable number of clusters. Draw boxes around the clusters of your cluster solution.
 
+```{r}
+plot(hc_ward,
+     hang = -1,
+     xlab = "Illinois Counties",
+     main = "Hierarchical Clustering Dendrogram",
+     sub = "")
+
+rect.hclust(hc_ward, k = 4, border = 2:5)
+```
+
 Visualize the county clusters on a map. For this task, create a new `acs_map` object that now also includes cluster membership as a new column. This column should be called `cluster`.
+
+```{r}
+k_clusters <- cutree(hc_ward, k = 4)
+
+cluster_df <- data.frame(
+  subregion = names(k_clusters),
+  cluster = as.factor(k_clusters)
+)
+
+acs_map_clustered <- acs_map %>%
+  left_join(cluster_df, by = "subregion")
+  
+ggplot(acs_map_clustered) + 
+  geom_polygon(aes(x = long,
+                   y = lat,
+                   group = group,
+                   fill = cluster),
+               color = "white",
+               linewidth = 0.1) +
+  coord_fixed(1.3) +
+  labs(title = "Illinois County Clusters",
+       fill = "CLuser ID") +
+  theme_void()
+```
 
 ## Census Tracts
 
@@ -82,6 +133,9 @@ For the next section we need ACS data on a census tract level. We use the same v
 
 ```{r}
 #| eval: false
+cs_key <- read_lines("/Users/wyi/Desktop/Fall 2025/SURVMETH 727/Assignment3_Wenyi/cs_key.txt"
+)
+
 acs_il_t <- getCensus(name = "acs/acs5",
                     vintage = 2016,
                     vars = c("NAME", 
