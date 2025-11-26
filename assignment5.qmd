@@ -23,6 +23,8 @@ https://api.census.gov/data/key_signup.html
 
 ```{r}
 #| eval: false
+cs_key <- readLines("/Users/wyi/Desktop/Fall 2025/SURVMETH 727/Assignment3_Wenyi/cs_key.txt")
+
 acs_il_c <- getCensus(name = "acs/acs5",
                     vintage = 2016,
                     vars = c("NAME", 
@@ -47,6 +49,12 @@ head(il_map)
 ```
 
 Join the ACS data with the map data. Not that `il_map` has a column `subregion` which includes county names. We need a corresponding variable in the ACS data to join both data sets. This needs some transformations, among which the function `tolower()` might be useful. Call the joined data `acs_map`.
+
+```{r}
+acs_il_c$subregion <- tolower(gsub(" County, Illinois", "", acs_il_c$NAME))
+acs_map <- inner_join(il_map, acs_il_c, by = "subregion")
+head(acs_map)
+```
 
 After you do this, plot a map of Illinois with Counties colored by per capita income.
 
