@@ -1,6 +1,7 @@
 ---
 title: "Assignment 5"
 subtitle: "Due at 11:59pm on November 25."
+author: "Wenyi Wang"
 format: pdf
 editor: visual
 ---
@@ -8,12 +9,13 @@ editor: visual
 You may work in pairs or individually for this assignment. Make sure you join a group in Canvas if you are working in pairs. Turn in this assignment as an HTML or PDF file to ELMS. Make sure to include the R Markdown or Quarto file that was used to generate it. Include the GitHub link for the repository containing these files.
 
 ```{r}
-#| eval: false
 library(censusapi)
 library(tidyverse)
 library(magrittr)
 library(factoextra)
 ```
+
+github link: <https://github.com/wenyiiw/727Assignment.git>
 
 ## Exploring ACS Data
 
@@ -22,7 +24,6 @@ In this notebook, we use the Census API to gather data from the American Communi
 https://api.census.gov/data/key_signup.html
 
 ```{r}
-#| eval: false
 cs_key <- readLines("/Users/wyi/Desktop/Fall 2025/SURVMETH 727/Assignment3_Wenyi/cs_key.txt")
 
 acs_il_c <- getCensus(name = "acs/acs5",
@@ -43,7 +44,6 @@ head(acs_il_c)
 Pull map data for Illinois into a data frame.
 
 ```{r}
-#| eval: false
 il_map <- map_data("county", region = "illinois")
 head(il_map)
 ```
@@ -152,14 +152,99 @@ head(acs_il_t)
 
 As before, clean our data for clustering census tracts based on population, average household income and per capita income.
 
+```{r}
+acs_cluster_t <- acs_il_t %>%
+  select(county, pop, hh_income, income) %>%
+  na.omit()
+
+acs_cluster_t$county <- as.integer(acs_cluster_t$county)
+
+acs_cluster_t_scaled <- acs_cluster_t %>%
+  scale() %>%
+  as.data.frame()
+
+head(acs_cluster_t_scaled)
+```
+
 Since we want to use K Means in this section, we start by determining the optimal number of K that results in Clusters with low within but high between variation. Plot within cluster sums of squares for a range of K (e.g. up to 20).
+
+```{r}
+wcss <- vector()
+
+for(i in 1:20) {
+  wcss[i] <- sum(kmeans(acs_cluster_t_scaled, centers = i, nstart = 25)$withinss)
+}
+
+plot(1:20, wcss, type = "b",
+     xlab = "Number of clusters",
+     ylab = "Within cluster sums of squares")
+```
 
 Run `kmeans()` for the optimal number of clusters based on the plot above.
 
+```{r}
+optimalK <- 4
+set.seed(42)
+
+kmeans_mod <- kmeans(acs_cluster_t_scaled, centers = optimalK, nstart = 25)
+
+acs_clustered_t <- acs_cluster_t %>%
+  mutate(cluster = as.factor(kmeans_mod$cluster))
+
+head(acs_clustered_t)
+```
+
 Find the mean population, household income and per capita income grouped by clusters. In addition, display the most frequent county that can be observed within each cluster.
+
+```{r}
+cluster_summary <- acs_clustered_t %>%
+  group_by(cluster) %>%
+  summarise(
+    mean_pop = mean(pop, na.rm = TRUE),
+    mean_hhincome = mean(hh_income, na.rm = TRUE),
+    mean_income = mean(income, na.rm = TRUE)
+  )
+
+cluster_summary
+```
+
+```{r}
+summary_county <- acs_clustered_t %>%
+  group_by(cluster) %>%
+  summarise(
+    most_freq_county = names(sort(table(county), decreasing = TRUE)) [1]
+  )
+summary_county
+```
+
+```{r}
+final <- cluster_summary %>%
+  left_join(summary_county, by = "cluster")
+
+final
+```
 
 As you might have seen earlier, it's not always clear which number of clusters is the optimal choice. To automate K Means clustering, program a function based on `kmeans()` that takes K as an argument. You can fix the other arguments, e.g. such that a specific dataset is always used when calling the function.
 
+```{r}
+auto_kmeans <- function(K) {
+  kmeans(acs_cluster_t_scaled, centers = K, nstart = 25)
+}
+```
+
 We want to utilize this function to iterate over multiple Ks (e.g., K = 2, ..., 10) and -- each time -- add the resulting cluster membership as a new variable to our (cleaned) original data frame (`acs_il_t`). There are multiple solutions for this task, e.g. think about the `apply` family or `for` loops.
 
+```{r}
+acs_il_cluster <- acs_cluster_t
+
+for(K in 2:10) {
+  mod <- auto_kmeans(K)
+  acs_il_cluster[[paste0("cluster_", K)]] <- mod$cluster
+}
+```
+
 Finally, display the first rows of the updated data set (with multiple cluster columns).
+
+```{r}
+head(acs_il_cluster)
+```
